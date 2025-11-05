@@ -1,0 +1,4 @@
+config BR2_PACKAGE_DHT11
+    bool "DHT11 Kernel Module"
+    help
+      A simple DHT11 kernel module.

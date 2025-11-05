@@ -1,0 +1,4 @@
+config BR2_PACKAGE_I2C_APP_CLIENT
+    bool "I2C App Client Kernel Module"
+    help
+      A simple I2C App Client kernel module.

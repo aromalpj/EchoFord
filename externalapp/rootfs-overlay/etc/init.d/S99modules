@@ -1,0 +1,23 @@
+#!/bin/sh
+
+case "$1" in
+start)
+    echo "Loading kernel modules..."
+    # Load the hello_world module
+    modprobe hello_world
+    modprobe dht11km
+    modprobe i2c_client_driver
+    ;;
+stop)
+    echo "Unloading kernel modules..."
+    modprobe -r hello_world
+    modprobe -r dht11km
+    modprobe -r i2c_client_driver
+    ;;
+*)
+    echo "Usage: $0 {start|stop}"
+    exit 1
+    ;;
+esac
+
+exit 0

@@ -1,0 +1,4 @@
+config BR2_PACKAGE_HELLO_WORLD
+    bool "Hello World Kernel Module"
+    help
+      A simple hello world kernel module.
