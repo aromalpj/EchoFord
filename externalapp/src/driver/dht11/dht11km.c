@@ -199,7 +199,7 @@ static int __init dht11InitModule
 
     /* Check for valid gpio pin number */
 
-    for(index = 0U; i < ARRAY_SIZE(validGpioPins); i++)
+    for(index = 0U; index < ARRAY_SIZE(validGpioPins); index++)
         {
         if(gpioPin == validGpioPins[i])
             {
