@@ -118,10 +118,10 @@ syscore_ops.h, fcntl.h, spinlock.h, timekeeping.h, fs.h, uaccess.h
 
 /* forward declarations */
 
-static int 		readDht11(struct inode *, struct file *);
-static int 		closeDht11(struct inode *, struct file *);
-static ssize_t	deviceRead(struct file *, char *, size_t, loff_t *);
-static void 	clearInterrupts(void);
+static int 		dht11ReadDht11(struct inode *, struct file *);
+static int 		dht11CloseDevice(struct inode *, struct file *);
+static ssize_t	dht11DeviceRead(struct file *, char *, size_t, loff_t *);
+static void 	dht11ClearInterrupts(void);
 
 /* locals */
 
@@ -148,9 +148,9 @@ uint32_t 				 validGpioPins[] = { 0, 1, 4, 8, 7, 9, 10, 11, 14, 15,
 
 static struct file_operations fops =
     {
-    .read = deviceRead,
-    .open = readDht11,
-    .release = closeDht11
+    .read = dht11DeviceRead,
+    .open = dht11ReadDht11,
+    .release = dht11CloseDevice
     };
 
 /*******************************************************************************
@@ -181,7 +181,7 @@ static struct file_operations fops =
  * \i <-EINVAL>
  *    When an invalid GPIO pin is specified.
  * \i <result>
- *    Non zero negative value returned by register_chrdev [result] or initPort
+ *    Non zero negative value returned by register_chrdev [result] or dht11InitPort
  *    upon failure.
  * \ie
  */
@@ -227,7 +227,7 @@ static int __init dht11InitModule
 
                                                     /* req: dht11InitModule_LLR_3 */
 
-    result = initPort();
+    result = dht11InitPort();
 
     if (result < 0)
         {
@@ -239,7 +239,7 @@ static int __init dht11InitModule
     }
 
 /*******************************************************************************
- * irqHandler - DHT11 sensor GPIO interrupt handler
+ * dht11IrqHandler - DHT11 sensor GPIO interrupt handler
  *
  * IRQ handler for the DHT11 sensor GPIO pin. Measures pulse timing and
  * extracts sensor data bits from high/low pulse durations.
@@ -292,13 +292,13 @@ static int __init dht11InitModule
  *
  */
 
-static irqreturn_t irqHandler
+static irqreturn_t dht11IrqHandler
     (
     int irq,   		    /* UNUSED PARAMETER */
     void * devId		/* UNUSED PARAMETER */
     )
     {
-                                                       /* req: irqHandler_LLR_1 */
+                                                       /* req: dht11IrqHandler_LLR_1 */
 
     static struct timespec64 lastts = {0, 0};
     struct 		  timespec64 tv;                       /* Current timestamp */
@@ -330,7 +330,7 @@ static irqreturn_t irqHandler
         started = 1U;
         return IRQ_HANDLED;
         }
-                                                       /* req: irqHandler_LLR_2*/
+                                                       /* req: dht11IrqHandler_LLR_2*/
 
     if((signal == 0U) && (started == 1U))
         {
@@ -362,7 +362,7 @@ static irqreturn_t irqHandler
     }
 
 /*******************************************************************************
- * setupInterrupts - Configures DHT11 sensor GPIO interrupt
+ * dht11SetupInterrupts - Configures DHT11 sensor GPIO interrupt
  *
  * Initializes and configures hardware interrupts for the DHT11 sensor GPIO pin.
  * Registers the interrupt handler, enables edge detection
@@ -398,17 +398,17 @@ static irqreturn_t irqHandler
  * \ie
  */
 
-static int setupInterrupts
+static int dht11SetupInterrupts
     (
     void    /* No parameters*/
     )
     {
-                                                /* req: setupInterrupts_LLR_1 */
+                                                /* req: dht11SetupInterrupts_LLR_1 */
 
     int32_t result = 0;
     unsigned long flags;
 
-    result = request_irq(INTERRUPT_GPIO0, irqHandler, 0, DHT11_DRIVER_NAME, (void*) gpio);
+    result = request_irq(INTERRUPT_GPIO0, dht11IrqHandler, 0, DHT11_DRIVER_NAME, (void*) gpio);
 
     switch (result)
         {
@@ -424,7 +424,7 @@ static int setupInterrupts
             printk(KERN_INFO DHT11_DRIVER_NAME	": Interrupt %04x obtained\n", INTERRUPT_GPIO0);
             break;
         }
-                                                /* req: setupInterrupts_LLR_2 */
+                                                /* req: dht11SetupInterrupts_LLR_2 */
 
     spin_lock_irqsave(&lock, flags);
 
@@ -446,7 +446,7 @@ static int setupInterrupts
     }
 
 /*******************************************************************************
- * initPort - Reserve and remap GPIO memory region for DHT11 driver
+ * dht11InitPort - Reserve and remap GPIO memory region for DHT11 driver
  *
  * This function reserves the GPIO memory region and performs the necessary
  * memory remapping for GPIO access by the DHT11 driver.
@@ -474,12 +474,12 @@ static int setupInterrupts
  * \ie
  */
 
-static int initPort
+static int dht11InitPort
     (
     void    /* No parameters*/
     )
     {
-                                                /* req: initPort_LLR_1 */
+                                                /* req: dht11InitPort_LLR_1 */
 
     /* reserve GPIO memory region */
 
@@ -558,7 +558,7 @@ static void __exit dht11ExitModule
     }
 
 /*******************************************************************************
- * readDht11 - Read data from the DHT11 sensor via character device
+ * dht11ReadDht11 - Read data from the DHT11 sensor via character device
  *
  * This function is called when a process attempts to read from the DHT11 device
  * It applies retry logic, interacts with the GPIO to trigger and fetch the
@@ -573,7 +573,7 @@ static void __exit dht11ExitModule
  *  - <deviceOpen> is not zero
  *
  *  This function returns -FAILURE when:
- *  - <setupInterrupts> fails
+ *  - <dht11SetupInterrupts> fails
  *
  *  This function returns SUCCESS when:
  *  - When formated data has been read
@@ -618,13 +618,13 @@ static void __exit dht11ExitModule
  * \ie
  */
 
-static int readDht11
+static int dht11ReadDht11
     (
     struct inode *pInode,      /* UNUSED PARAMETER */
     struct file *pFile		   /* UNUSED PARAMETER */
     )
     {
-                                                /* req: readDht11_LLR_1 */
+                                                /* req: dht11ReadDht11_LLR_1 */
     char result[5] = {0};
     uint32_t retry = 0U;
     uint32_t hum22 = 0U;         				/* DHT22 humidity in 0.1 % RH */
@@ -642,7 +642,7 @@ static int readDht11
         return -EBUSY;
         }
 
-                                                /* req: readDht11_LLR_2 */
+                                                /* req: dht11ReadDht11_LLR_2 */
 
     try_module_get(THIS_MODULE); 				/*Increase use count*/
 
@@ -670,7 +670,7 @@ static int readDht11
 
         /* Set up interrupts */
 
-        intr = setupInterrupts();
+        intr = dht11SetupInterrupts();
 
         if (intr != 0)
             {
@@ -678,7 +678,7 @@ static int readDht11
 
             return FAILURE;
             }
-                                                /* req: readDht11_LLR_3 */
+                                                /* req: dht11ReadDht11_LLR_3 */
 
         /* Give the dht11 time to reply */
 
@@ -693,7 +693,7 @@ static int readDht11
             } else
             {
             sprintf(result, "BAD");
-            (void) clearInterrupts();
+            (void) dht11ClearInterrupts();
             mdelay(2100);  						/* Can only read from sensor every 1 second
                                                     so give it time to recover */
             retry++;
@@ -761,7 +761,7 @@ static int readDht11
 
 
 /*******************************************************************************
- * closeDht11 - Closes the device file.
+ * dht11CloseDevice - Closes the device file.
  *
  * This function decrements deviceOpen count. Clears all the resource
  *
@@ -790,14 +790,14 @@ static int readDht11
  * \ie
  */
 
-static int closeDht11
+static int dht11CloseDevice
     (
     struct inode *pInode,     /* UNUSED Parameter*/
     struct file *pFile        /* UNUSED Parameter*/
     )
     {
 
-                                                      /* req: closeDht11_LLR_1 */
+                                                      /* req: dht11CloseDevice_LLR_1 */
 
     module_put(THIS_MODULE);
 
@@ -806,13 +806,13 @@ static int closeDht11
 
     deviceOpen--;
 
-    (void)clearInterrupts(void);
+    (void)dht11ClearInterrupts(void);
 
     return 0;
     }
 
 /*******************************************************************************
- * clearInterrupts - Clear GPIO edge-detect interrupts and free IRQ
+ * dht11ClearInterrupts - Clear GPIO edge-detect interrupts and free IRQ
  *
  * This function disables both rising and falling edge detection on the configured
  * GPIO pin. It safely acquires and releases the spinlock to protect critical
@@ -837,12 +837,12 @@ static int closeDht11
  * RETURNS:  N/A
  */
 
-static void clearInterrupts
+static void dht11ClearInterrupts
     (
     void		/* No parameters*/
     )
     {
-                                                     /* req: clearInterrupts_LLR_1 */
+                                                     /* req: dht11ClearInterrupts_LLR_1 */
 
     unsigned long flags;
 
@@ -862,9 +862,9 @@ static void clearInterrupts
     }
 
 /*******************************************************************************
- * deviceRead -  Read data from kernel space to user space.
+ * dht11DeviceRead -  Read data from kernel space to user space.
  *
- *  This function [deviceRead] copies the data from the kernel data segment to
+ *  This function [dht11DeviceRead] copies the data from the kernel data segment to
  *  the user data segment.
  *  This function returns 0 when
  *  - <pMsgPtr> is NULL
@@ -928,7 +928,7 @@ static void clearInterrupts
  * \ie
  */
 
-static ssize_t deviceRead
+static ssize_t dht11DeviceRead
     (
     struct file * pFile,	/* File pointer */
     char * pBuffer,	        /* Buffer to fill with data */
@@ -936,7 +936,7 @@ static ssize_t deviceRead
     loff_t * pOffset		/* pOffset pointer */
     )
     {
-                                                     /* req: deviceRead_LLR_1 */
+                                                     /* req: dht11DeviceRead_LLR_1 */
 
     /* Number of bytes actually written to the buffer */
 
@@ -955,7 +955,7 @@ static ssize_t deviceRead
         {
         return 0;
         }
-                                                     /* req: deviceRead_LLR_2 */
+                                                     /* req: dht11DeviceRead_LLR_2 */
 
     /* Actually put the data into the buffer */
 
@@ -969,7 +969,7 @@ static ssize_t deviceRead
             {
             return -EFAULT;
             }
-                                                     /* req: deviceRead_LLR_3 */
+                                                     /* req: dht11DeviceRead_LLR_3 */
         pMsgPtr++;
         pBuffer++;
         length--;
