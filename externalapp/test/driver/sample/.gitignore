@@ -1,0 +1,6 @@
+*.test
+*.gcda
+*.gcno
+*.info
+
+report/
