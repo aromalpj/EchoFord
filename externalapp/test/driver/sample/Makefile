@@ -1,38 +1,78 @@
 # Makefile for compiling a simple gTest project with gCoverage
 
+# Project paths
+TEST_DIR  := $(shell readlink -f ../../)
+BUILD_DIR := .
+
 # --- Configuration ---
-# C++ compiler
+# C, C++ compiler
+CC  := gcc
 CXX := g++
 
-# Compiler flags: Standard C++14, warnings, include path for gTest
-CXXFLAGS := -std=c++14 -Wall -I/usr/include -I$(UNIT_DIR)
+# Recursively find all directories under TEST_DIR
+INC_TEST_DIRS := $(shell find $(TEST_DIR) -type d)
+
+# --- Includes ---
+INC := -I/usr/include \
+       -I$(UNIT_DIR)/ \
+	   $(addprefix -I,$(INC_TEST_DIRS))
+
+# Compiler flags: for compiling C files
+CFLAGS   := -Dstatic= -Wall \
+            $(shell $(TEST_DIR)/lib/bin/cmock-config --cflags) \
+            $(INC)
+
+# Compiler flags: for compiling C++ files
+CXXFLAGS := -std=c++14 -Wall \
+            $(shell $(TEST_DIR)/lib/bin/cmock-config --cflags) \
+            $(INC)
 
 # Flags for code coverage (gcov)
 GCOV_FLAGS := -fprofile-arcs -ftest-coverage
 
-# Linker flags: Link with gtest, gtest_main, and pthread
-LDFLAGS := -lgtest -lgtest_main -pthread
+# Linker flags: Link with pthread, gtest, gmock
+LDFLAGS := -pthread \
+           -lgtest \
+           -lgmock \
+           $(shell $(TEST_DIR)/lib/bin/cmock-config --libs)
 
 # Executable name
 TARGET := target.test
 
 # Source files
 SRC_IMPL := $(UNIT_DIR)/helloworld.c
-SRC_TEST := test_helloworld.cpp
+SRC_TEST := test_helloworld.cc
+
+SRC_NAME := $(notdir $(SRC_IMPL))
+SRC_BASE := $(basename $(SRC_NAME))
+
+TEST_NAME := $(notdir $(SRC_TEST))
+TEST_BASE := $(basename $(TEST_NAME))
+
+# Prefixed Objects
+C_OBJS   := $(BUILD_DIR)/$(TARGET)-$(SRC_BASE).o
+CPP_OBJS := $(BUILD_DIR)/$(TARGET)-$(TEST_BASE).o
 
 # Coverage Report Directory
 COVERAGE_DIR := report
 
 # --- Targets ---
-
 .PHONY: all clean run coverage report
 
 # Default target: builds and runs the test
 all: $(TARGET) run
 
-# Rule to compile the test executable *with* coverage flags
-$(TARGET): $(SRC_IMPL) $(SRC_TEST)
-	$(CXX) $(CXXFLAGS) $(GCOV_FLAGS) $^ -o $@ $(LDFLAGS)
+# C source → prefixed object
+$(BUILD_DIR)/$(TARGET)-%.o: $(UNIT_DIR)/%.c
+	$(CC) -c $(CFLAGS) $(GCOV_FLAGS) $< -o $@
+
+# C++ test → prefixed object
+$(BUILD_DIR)/$(TARGET)-%.o: %.cc
+	$(CXX) -c $(CXXFLAGS) $(GCOV_FLAGS) $< -o $@
+
+# Link test executable
+$(TARGET): $(C_OBJS) $(CPP_OBJS)
+	$(CXX) $^ -o $@ $(LDFLAGS) $(GCOV_FLAGS) -I/home/aromal/EchoFord/externalapp/externalapp/src/driver/sample
 
 # Rule to run the test executable
 run: $(TARGET)
@@ -44,11 +84,15 @@ coverage: clean $(TARGET) run report
 # Rule to generate the HTML report using lcov
 report:
 	@echo "--- Generating Coverage Report ---"
-	# 1. Capture coverage data from the execution (.gcda files)
-	lcov --capture --directory . --output-file coverage.info --ignore-errors mismatch
-	# 2. Filter out system headers and test files (optional but recommended)
-	lcov --remove coverage.info '/usr/*' '*/test_*.cpp' --output-file coverage_filtered.info --ignore-errors mismatch
-	# 3. Generate HTML report
+	lcov --capture \
+	     --directory $(BUILD_DIR) \
+	     --directory $(UNIT_DIR) \
+	     --output-file coverage.info \
+	     --ignore-errors mismatch,empty
+	lcov --remove coverage.info \
+	     '/usr/*' '*test_*' '*mock*' '/lib/*' \
+	     --output-file coverage_filtered.info \
+	     --ignore-errors mismatch,empty,unused
 	genhtml coverage_filtered.info --output-directory $(COVERAGE_DIR)
 	@echo "--- Coverage report generated in: $(COVERAGE_DIR)/index.html ---"
 

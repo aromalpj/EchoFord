@@ -2,5 +2,6 @@
 *.gcda
 *.gcno
 *.info
+*.o
 
 report/

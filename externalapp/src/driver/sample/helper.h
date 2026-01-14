@@ -11,25 +11,25 @@
  * 29Nov25,vrk  Created, and added the includes, and function declarations.
 */
 
-#ifndef __INChelloworldh
-#define __INChelloworldh
+#ifndef __INChelperh
+#define __INChelperh
 
 /**
  * ### Description
  * 
- * This file contains includes, defines and APIs related to addition of two 
- * integers
+ * This file contains includes, defines and APIs related to divisibility check.
 */
 
 /* includes */
 
 #include <stdio.h>
+#include <stdbool.h>
 #include <stdint.h>
 
 /* defines */
 
 /* function declaration */
 
-int32_t add(int32_t lNum1, int32_t lNum2);
+bool isDivisible(int32_t lDivisor);
 
-#endif /* __INChelloworldh */
+#endif /* __INChelperh */
