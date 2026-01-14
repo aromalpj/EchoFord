@@ -15,7 +15,7 @@ if [ "$#" -ne 1 ]; then
 fi
 
 TC_PREFIX="test_"
-TC_SUFFIX="pp"
+TC_SUFFIX="c"
 SRC_FILE="$1"
 TEST_FILE="$TC_PREFIX$1$TC_SUFFIX"
 
